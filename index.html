@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>復古多重宇宙主控台</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-touch-callout: none; }
+        body { background-color: #2c3e50; color: white; font-family: 'Courier New', Courier, monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* 頂部資訊列 */
+        #status-bar { height: 8%; background-color: #1a252f; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-weight: bold; font-size: 1.2rem; }
+        #score-display { color: #f1c40f; }
+
+        /* 遊戲畫面區 (iframe) */
+        #screen-container { height: 50%; width: 100%; background-color: #000; border-bottom: 4px solid #34495e; }
+        #game-frame { width: 100%; height: 100%; border: none; }
+
+        /* 虛擬手把區 (GameBoy 風格) */
+        #gamepad-area { height: 42%; background-color: #bdc3c7; position: relative; padding: 20px; }
+        
+        /* 十字鍵 */
+        .d-pad { position: absolute; left: 30px; top: 50px; width: 120px; height: 120px; }
+        .d-btn { position: absolute; background-color: #34495e; width: 40px; height: 40px; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+        .d-btn:active { background-color: #2c3e50; }
+        .d-up { top: 0; left: 40px; }
+        .d-down { bottom: 0; left: 40px; }
+        .d-left { top: 40px; left: 0; }
+        .d-right { top: 40px; right: 0; }
+        .d-center { top: 40px; left: 40px; background-color: #2c3e50; } /* 中心不可按 */
+
+        /* A/B 動作鍵 */
+        .action-pad { position: absolute; right: 30px; top: 60px; width: 120px; height: 80px; display: flex; justify-content: space-between; align-items: flex-end; transform: rotate(-15deg); }
+        .a-btn, .b-btn { width: 50px; height: 50px; background-color: #c0392b; border-radius: 50%; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.4), 0 4px 0 #922b21; color: #7b241c; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem; }
+        .a-btn:active, .b-btn:active { transform: translateY(4px); box-shadow: inset -2px -2px 5px rgba(0,0,0,0.4), 0 0 0 #922b21; }
+
+        /* 系統按鈕 */
+        .sys-btn-group { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; }
+        .sys-btn { background-color: #7f8c8d; color: #fff; border: none; padding: 8px 15px; border-radius: 15px; font-size: 0.8rem; box-shadow: 0 3px 0 #5a6667; }
+        .sys-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #5a6667; }
+    </style>
+</head>
+<body>
+
+    <div id="status-bar">
+        <div id="universe-name">🪐 瑪利歐宇宙</div>
+        <div id="score-display">總分數: 0</div>
+    </div>
+
+    <div id="screen-container">
+        <iframe id="game-frame" src="https://你的帳號.github.io/Super-Mario-Phaser/"></iframe>
+    </div>
+
+    <div id="gamepad-area">
+        <div class="d-pad">
+            <div class="d-btn d-up" data-key="ArrowUp" data-code="38"></div>
+            <div class="d-btn d-left" data-key="ArrowLeft" data-code="37"></div>
+            <div class="d-btn d-center"></div>
+            <div class="d-btn d-right" data-key="ArrowRight" data-code="39"></div>
+            <div class="d-btn d-down" data-key="ArrowDown" data-code="40"></div>
+        </div>
+
+        <div class="action-pad">
+            <div class="b-btn" data-key="Shift" data-code="16">B</div>
+            <div class="a-btn" data-key=" " data-code="32">A</div> 
+        </div>
+
+        <div class="sys-btn-group">
+            <button class="sys-btn" id="btn-next-universe">傳送：隨機宇宙</button>
+        </div>
+    </div>
+
+    <script>
+        let totalScore = 0;
+        const gameFrame = document.getElementById('game-frame');
+        
+        // ==========================================
+        // 1. 多重宇宙清單 (請填入你未來所有遊戲的網址)
+        // ==========================================
+        const universeList = [
+            { name: "🪐 瑪利歐宇宙", url: "https://你的帳號.github.io/Super-Mario-Phaser/" },
+            { name: "🪖 坦克大戰", url: "https://你的帳號.github.io/battle-city-ai/" },
+            // 未來可以繼續新增馬戲團等網址...
+        ];
+
+        // ==========================================
+        // 2. 跨維度收信系統 (接收遊戲死掉時傳出的分數)
+        // ==========================================
+        window.addEventListener("message", function(event) {
+            // 只要內部的遊戲喊出 { type: 'GAME_OVER', score: 1000 }，這裡就會攔截到
+            if (event.data && event.data.type === "GAME_OVER") {
+                totalScore += event.data.score;
+                document.getElementById('score-display').innerText = `總分數: ${totalScore}`;
+                
+                // TODO: 未來可以在這裡加入 GAS API，把總分上傳給 LINE 機器人
+                console.log("已攔截分數並更新！");
+            }
+        });
+
+        // ==========================================
+        // 3. 虛擬手把訊號發射器
+        // ==========================================
+        function sendKeyToGame(keyName, keyCode, isKeyDown) {
+            // 建構虛假的鍵盤訊號
+            const eventType = isKeyDown ? 'keydown' : 'keyup';
+            const event = new KeyboardEvent(eventType, {
+                key: keyName,
+                code: keyName,
+                keyCode: parseInt(keyCode),
+                which: parseInt(keyCode),
+                bubbles: true
+            });
+            // 穿透 iframe，將訊號發射進內層遊戲的 document 中
+            const iframeDoc = gameFrame.contentDocument || gameFrame.contentWindow.document;
+            iframeDoc.dispatchEvent(event);
+        }
+
+        // 綁定所有按鈕的觸控事件 (支援多點觸控)
+        const buttons = document.querySelectorAll('.d-btn:not(.d-center), .a-btn, .b-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // 防止螢幕跟著滑動
+                sendKeyToGame(btn.dataset.key, btn.dataset.code, true);
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                sendKeyToGame(btn.dataset.key, btn.dataset.code, false);
+            });
+            // 兼容電腦滑鼠點擊測試
+            btn.addEventListener('mousedown', (e) => sendKeyToGame(btn.dataset.key, btn.dataset.code, true));
+            btn.addEventListener('mouseup', (e) => sendKeyToGame(btn.dataset.key, btn.dataset.code, false));
+        });
+
+        // ==========================================
+        // 4. 隨機宇宙傳送門
+        // ==========================================
+        document.getElementById('btn-next-universe').addEventListener('click', () => {
+            const nextGame = universeList[Math.floor(Math.random() * universeList.length)];
+            gameFrame.src = nextGame.url;
+            document.getElementById('universe-name').innerText = nextGame.name;
+        });
+
+    </script>
+</body>
+</html>
